@@ -9,24 +9,29 @@ amqp.connect('amqp://localhost', function (error0, connection) {
             throw error1;
         }
 
-        var queue = 'work_queues';
+        var exchange = 'logs';
 
-        channel.assertQueue(queue, {
-            durable: true
+        channel.assertExchange(exchange, 'fanout', {
+            durable: false
         });
-        channel.prefetch(1);
-        console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queue);
 
-        channel.consume(queue, (msg) => {
-            var secs = msg.content.toString().split('.').length - 1;
 
-            console.log(" [x] Received %s", msg.content.toString());
-            console.log("Processing");
-            setTimeout(function () {
-                console.log(" [x] Done");
-            }, secs * 1000)
-        }, {
-            noAck: false
-        })
+        channel.assertQueue('', {
+            exclusive: true
+        }, (err, q) => {
+            if (err) {
+                throw err;
+            }
+            console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", q.queue);
+            channel.bindQueue(q.queue, exchange, '');
+
+            channel.consume(q.queue, function (msg) {
+                if (msg.content) {
+                    console.log(" [x] %s", msg.content.toString());
+                }
+            }, {
+                noAck: true
+            });
+        });
     });
 });
